@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Future Interests Drill</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<style>
+:root {
+  --primary: #0a2a66;
+  --correct: #1b7f4d;
+  --wrong: #b42318;
+  --muted: #64748b;
+  --note: #fff8cc;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: system-ui, sans-serif;
+  background: linear-gradient(180deg,#eef2ff,#f8fafc);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+
+.card {
+  max-width: 460px;
+  width: 100%;
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.1);
+}
+
+.header {
+  text-align: center;
+}
+
+.icon {
+  font-size: 42px;
+  margin-bottom: 6px;
+}
+
+.title {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.status {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin: 10px 0;
+}
+
+.streak {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.streak.animate {
+  animation: pop .35s ease;
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.prompt {
+  background: var(--note);
+  padding: 20px;
+  border-radius: 16px;
+  text-align: center;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.grantor {
+  font-size: 13px;
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.answers {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+button.answer {
+  padding: 16px;
+  border-radius: 14px;
+  font-size: 16px;
+  border: 2px solid #cbd5e1;
+  background: white;
+  cursor: pointer;
+}
+
+button.answer.correct {
+  background: var(--correct);
+  color: white;
+  border-color: var(--correct);
+}
+
+button.answer.wrong {
+  background: var(--wrong);
+  color: white;
+  border-color: var(--wrong);
+}
+
+button.answer.outlined {
+  border-color: #94a3b8;
+}
+
+.explanation {
+  margin-top: 16px;
+  padding: 14px;
+  border-left: 4px solid var(--correct);
+  background: #ecfdf5;
+  display: none;
+}
+
+.exam-mode .explanation {
+  display: none !important;
+}
+
+.next {
+  margin-top: 20px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--primary);
+  color: white;
+  font-size: 18px;
+  border: none;
+  cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+<div class="card">
+
+  <div class="header">
+    <div class="icon">⚖️</div>
+    <div class="title">Future Interests Drill</div>
+  </div>
+
+  <div class="status">
+    <div class="streak" id="streakBox">🔥 <span id="streak">0</span></div>
+    <div>✔ <span id="correct">0</span> ✖ <span id="wrong">0</span> ⏱ <span id="time">0.0</span>s</div>
+  </div>
+
+  <div class="controls">
+    <label><input type="checkbox" id="speed"> Speed Mode (5s)</label>
+    <label><input type="checkbox" id="exam"> Exam Mode</label>
+  </div>
+
+  <div class="prompt" id="prompt"></div>
+  <div class="grantor">Grantor: O</div>
+
+  <div class="answers" id="answers"></div>
+
+  <div class="explanation" id="explanation"></div>
+
+  <button class="next" id="next">Next Question</button>
+
+</div>
+
+<script>
+const q = {
+  text: "To The City for life, then to Charlie.",
+  correct: "Vested Remainder",
+  explanations: {
+    correct: "Charlie is ascertained and no condition precedent applies.",
+    wrong: {
+      "Contingent Remainder": "No condition precedent exists.",
+      "Executory Interest": "No divestment of a vested estate.",
+      "Reversion": "Future interest is not retained by the grantor."
+    }
+  }
+};
+
+let streak = 0, correct = 0, wrong = 0, start;
+
+const prompt = document.getElementById("prompt");
+const answers = document.getElementById("answers");
+const explanation = document.getElementById("explanation");
+const streakEl = document.getElementById("streak");
+const streakBox = document.getElementById("streakBox");
+const timeEl = document.getElementById("time");
+const exam = document.getElementById("exam");
+
+function load() {
+  prompt.textContent = q.text;
+  answers.innerHTML = "";
+  explanation.style.display = "none";
+  start = performance.now();
+
+  ["Vested Remainder","Contingent Remainder","Executory Interest","Reversion"]
+    .forEach(a => {
+      const b = document.createElement("button");
+      b.className = "answer";
+      b.textContent = a;
+      b.onclick = () => answer(b, a);
+      answers.appendChild(b);
+    });
+}
+
+function answer(btn, choice) {
+  const t = ((performance.now() - start)/1000).toFixed(1);
+  timeEl.textContent = t;
+
+  document.querySelectorAll(".answer").forEach(b => b.disabled = true);
+
+  if (choice === q.correct) {
+    btn.classList.add("correct");
+    streak++;
+    correct++;
+    streakEl.textContent = streak;
+    streakBox.classList.add("animate");
+    setTimeout(()=>streakBox.classList.remove("animate"),300);
+  } else {
+    btn.classList.add("wrong");
+    streak = 0;
+    wrong++;
+    document.querySelectorAll(".answer").forEach(b => {
+      if (b.textContent === q.correct) b.classList.add("correct");
+      if (b !== btn && b.textContent !== q.correct) b.classList.add("outlined");
+    });
+  }
+
+  document.getElementById("correct").textContent = correct;
+  document.getElementById("wrong").textContent = wrong;
+
+  if (!exam.checked) {
+    explanation.innerHTML = `
+      <strong>Why this works:</strong> ${q.explanations.correct}<br><br>
+      <strong>Why not the others:</strong>
+      <ul>
+        ${Object.entries(q.explanations.wrong).map(([k,v])=>`<li><em>${k}</em>: ${v}</li>`).join("")}
+      </ul>
+      Answered in ${t}s
+    `;
+    explanation.style.display = "block";
+  }
+}
+
+document.getElementById("next").onclick = load;
+load();
+</script>
+</body>
+</html>
