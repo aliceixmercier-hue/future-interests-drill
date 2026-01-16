@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Future Interests Drill</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+:root {
+  --primary:#0a2a66;
+  --correct:#1b7f4d;
+  --wrong:#b42318;
+  --note:#fff6bf;
+  --card:#ffffff;
+  --bg:#f3f6fb;
+}
+
+body {
+  margin:0;
+  background:var(--bg);
+  font-family:system-ui,-apple-system,sans-serif;
+}
+
+.card {
+  max-width:520px;
+  margin:40px auto;
+  background:var(--card);
+  border-radius:20px;
+  padding:28px;
+  box-shadow:0 20px 40px rgba(0,0,0,.08);
+}
+
+.header {
+  text-align:center;
+}
+
+.scale {
+  font-size:44px;
+  margin-bottom:6px;
+}
+
+.sub {
+  color:#5b6b8b;
+  font-size:14px;
+}
+
+.topbar {
+  display:flex;
+  justify-content:space-between;
+  margin:14px 0;
+  font-size:14px;
+}
+
+.prompt {
+  background:var(--note);
+  padding:18px;
+  border-radius:14px;
+  font-size:22px;
+  font-weight:600;
+  margin:18px 0;
+}
+
+.answers {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+
+button.answer {
+  padding:14px;
+  border-radius:12px;
+  border:2px solid #d0d8ea;
+  background:white;
+  font-size:15px;
+  cursor:pointer;
+}
+
+button.answer.correct {
+  background:var(--correct);
+  color:white;
+  border-color:var(--correct);
+}
+
+button.answer.wrong {
+  background:var(--wrong);
+  color:white;
+  border-color:var(--wrong);
+}
+
+.feedback {
+  margin-top:18px;
+  padding:16px;
+  border-radius:12px;
+  background:#fdeeee;
+  border-left:6px solid var(--wrong);
+  font-size:14px;
+}
+
+.feedback.correct {
+  background:#e9f7ef;
+  border-left-color:var(--correct);
+}
+
+.next {
+  margin-top:18px;
+  width:100%;
+  padding:16px;
+  background:var(--primary);
+  color:white;
+  border:none;
+  border-radius:14px;
+  font-size:16px;
+  cursor:pointer;
+}
+
+.hidden { display:none; }
+</style>
+</head>
+
+<body>
+<div class="card">
+
+  <div class="header">
+    <div class="scale">⚖️</div>
+    <div class="sub">Future Interests Drill</div>
+  </div>
+
+  <div class="topbar">
+    <div>🔥 <span id="streak">0</span></div>
+    <div>✓ <span id="correct">0</span> ✗ <span id="wrong">0</span> ⏱ <span id="time">0.0</span>s</div>
+  </div>
+
+  <label><input type="checkbox" id="speed"> Speed Mode (5s)</label>
+  <label style="margin-left:12px;"><input type="checkbox" id="exam"> Exam Mode</label>
+
+  <div class="prompt" id="prompt"></div>
+
+  <div class="answers" id="answers"></div>
+
+  <div class="feedback hidden" id="feedback"></div>
+
+  <button class="next" id="next">Next Question</button>
+</div>
+
+<script>
+/* ---------------- QUESTION BANK ---------------- */
+
+const QUESTION_BANK = [
+  {
+    text:"To Bob for life, then to Charlie.",
+    correct:"Vested Remainder",
+    correctWhy:"Charlie is ascertained and no condition precedent applies.",
+    wrongWhy:{
+      "Contingent Remainder":"Charlie’s interest is not subject to a condition precedent.",
+      "Executory Interest":"No estate is divested upon occurrence of a condition.",
+      "Reversion":"The future interest is not retained by the grantor."
+    }
+  },
+  {
+    text:"To Alice for life, then to Bob if Bob survives Alice.",
+    correct:"Contingent Remainder",
+    correctWhy:"Bob’s interest depends on survival, a condition precedent.",
+    wrongWhy:{
+      "Vested Remainder":"Vesting is delayed until the condition is satisfied.",
+      "Executory Interest":"There is no divestment of a vested estate.",
+      "Reversion":"The grantor does not retain the future interest."
+    }
+  },
+  {
+    text:"To Dana, but if alcohol is sold, then to Evan.",
+    correct:"Executory Interest",
+    correctWhy:"Evan divests Dana upon the occurrence of a stated condition.",
+    wrongWhy:{
+      "Vested Remainder":"A remainder cannot divest a prior estate.",
+      "Contingent Remainder":"The interest does not follow a life estate.",
+      "Reversion":"The interest is granted to a third party."
+    }
+  },
+  {
+    text:"To Frank for life.",
+    correct:"Reversion",
+    correctWhy:"The grantor retains the future interest after the life estate.",
+    wrongWhy:{
+      "Vested Remainder":"No remainder is created.",
+      "Contingent Remainder":"No remainder follows the life estate.",
+      "Executory Interest":"No divesting condition applies."
+    }
+  },
+  {
+    text:"To A for life, then to A’s children.",
+    correct:"Contingent Remainder",
+    correctWhy:"A’s children are unascertained until A has children.",
+    wrongWhy:{
+      "Vested Remainder":"The class is not yet ascertainable.",
+      "Executory Interest":"No divestment of a vested estate.",
+      "Reversion":"The grantor does not retain the interest."
+    }
+  },
+  {
+    text:"To A for life, then to B, but if B does not survive A, to C.",
+    correct:"Vested Remainder",
+    correctWhy:"B is ascertained; C holds an executory interest.",
+    wrongWhy:{
+      "Contingent Remainder":"B’s interest is not subject to a condition precedent.",
+      "Executory Interest":"B does not divest another estate.",
+      "Reversion":"The grantor retains nothing."
+    }
+  }
+];
+
+/* ---------------- STATE ---------------- */
+
+let order = [];
+let pointer = 0;
+let streak = 0;
+let correct = 0;
+let wrong = 0;
+let startTime = 0;
+let locked = false;
+
+/* ---------------- DOM ---------------- */
+
+const promptEl = document.getElementById("prompt");
+const answersEl = document.getElementById("answers");
+const feedbackEl = document.getElementById("feedback");
+const streakEl = document.getElementById("streak");
+const correctEl = document.getElementById("correct");
+const wrongEl = document.getElementById("wrong");
+const timeEl = document.getElementById("time");
+
+/* ---------------- LOGIC ---------------- */
+
+function shuffle() {
+  order = [...QUESTION_BANK].sort(()=>Math.random()-0.5);
+  pointer = 0;
+}
+
+function loadQuestion() {
+  if (pointer >= order.length) shuffle();
+
+  locked = false;
+  feedbackEl.classList.add("hidden");
+  answersEl.innerHTML = "";
+
+  const q = order[pointer];
+  promptEl.textContent = q.text;
+  startTime = performance.now();
+
+  ["Vested Remainder","Contingent Remainder","Executory Interest","Reversion"]
+    .forEach(opt=>{
+      const b=document.createElement("button");
+      b.className="answer";
+      b.textContent=opt;
+      b.onclick=()=>select(opt,b);
+      answersEl.appendChild(b);
+    });
+}
+
+function select(choice, btn) {
+  if (locked) return;
+  locked = true;
+
+  const q = order[pointer];
+  const elapsed = ((performance.now()-startTime)/1000).toFixed(1);
+  timeEl.textContent = elapsed;
+
+  document.querySelectorAll(".answer").forEach(b=>{
+    if (b.textContent===q.correct) b.classList.add("correct");
+    if (b.textContent===choice && choice!==q.correct) b.classList.add("wrong");
+  });
+
+  let html = "";
+
+  if (choice===q.correct) {
+    streak++; correct++;
+    feedbackEl.className="feedback correct";
+    html += "<b>Correct.</b><br>";
+  } else {
+    streak=0; wrong++;
+    feedbackEl.className="feedback";
+    html += "<b>Incorrect.</b><br>";
+  }
+
+  html += `<b>Why your answer is correct:</b> ${q.correctWhy}<br><br>`;
+  html += "<b>Why the other options are incorrect:</b><ul>";
+  for (const [k,v] of Object.entries(q.wrongWhy)) {
+    html += `<li><i>${k}</i>: ${v}</li>`;
+  }
+  html += `</ul>Answered in ${elapsed}s`;
+
+  feedbackEl.innerHTML = html;
+  feedbackEl.classList.remove("hidden");
+
+  streakEl.textContent = streak;
+  correctEl.textContent = correct;
+  wrongEl.textContent = wrong;
+}
+
+document.getElementById("next").onclick = () => {
+  pointer++;
+  loadQuestion();
+};
+
+/* ---------------- INIT ---------------- */
+
+shuffle();
+loadQuestion();
+</script>
+</body>
+</html>
