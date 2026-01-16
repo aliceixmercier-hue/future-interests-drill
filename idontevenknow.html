@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Future Interests Drill</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<style>
+:root{
+  --primary:#0a2a66;
+  --correct:#1b7f4d;
+  --wrong:#b42318;
+  --note:#fff7c2;
+  --muted:#64748b;
+}
+body{
+  margin:0;
+  min-height:100vh;
+  font-family:system-ui,sans-serif;
+  background:linear-gradient(#eef2ff,#f8fafc);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+.card{
+  width:100%;
+  max-width:440px;
+  background:#fff;
+  padding:24px;
+  border-radius:18px;
+  box-shadow:0 20px 40px rgba(0,0,0,.1);
+}
+.header{
+  text-align:center;
+}
+.icon{
+  font-size:42px;
+  margin-bottom:4px;
+}
+.title{
+  font-size:14px;
+  color:var(--muted);
+}
+.status{
+  display:flex;
+  justify-content:space-between;
+  margin:12px 0;
+  font-size:14px;
+}
+.modes{
+  font-size:14px;
+  color:var(--muted);
+  margin-bottom:10px;
+}
+.prompt{
+  background:var(--note);
+  padding:16px;
+  border-radius:14px;
+  font-size:22px;
+  font-weight:600;
+  text-align:center;
+  margin:12px 0;
+}
+.answers{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+button{
+  padding:14px;
+  font-size:15px;
+  border-radius:12px;
+  border:2px solid #cbd5e1;
+  background:white;
+  cursor:pointer;
+}
+button.correct{
+  background:var(--correct);
+  border-color:var(--correct);
+  color:white;
+}
+button.wrong{
+  background:#fde8e8;
+  border-color:var(--wrong);
+  color:var(--wrong);
+}
+.feedback{
+  margin-top:14px;
+  padding:14px;
+  border-radius:12px;
+  display:none;
+}
+.feedback.correct{
+  background:#ecfdf5;
+  border-left:5px solid var(--correct);
+}
+.feedback.wrong{
+  background:#fff1f2;
+  border-left:5px solid var(--wrong);
+}
+.next{
+  margin-top:16px;
+  width:100%;
+  padding:14px;
+  font-size:16px;
+  border:none;
+  border-radius:14px;
+  background:var(--primary);
+  color:white;
+}
+</style>
+</head>
+
+<body>
+<div class="card">
+  <div class="header">
+    <div class="icon">⚖️</div>
+    <div class="title">Future Interests Drill</div>
+  </div>
+
+  <div class="status">
+    <div>🔥 <span id="streak">0</span></div>
+    <div>✔ <span id="correct">0</span> ✖ <span id="wrong">0</span> ⏱ <span id="timer">0.0</span>s</div>
+  </div>
+
+  <div class="modes">
+    <label><input type="checkbox" id="speedMode"> Speed Mode (5s)</label>
+    &nbsp;&nbsp;
+    <label><input type="checkbox" id="examMode"> Exam Mode</label>
+  </div>
+
+  <div id="prompt" class="prompt"></div>
+
+  <div id="answers" class="answers"></div>
+
+  <div id="feedback" class="feedback"></div>
+
+  <button id="nextBtn" class="next">Next Question</button>
+</div>
+
+<script>
+/* ---------- DATA ---------- */
+const QUESTIONS=[
+{
+  text:"To The City for life, then to Charlie.",
+  correct:"Vested Remainder",
+  explain:{
+    correct:"Charlie is ascertained and no condition precedent applies.",
+    wrong:{
+      "Contingent Remainder":"No condition precedent must occur before Charlie takes.",
+      "Executory Interest":"No divestment of a transferee’s estate.",
+      "Reversion":"The future interest is not retained by the grantor."
+    }
+  }
+},
+{
+  text:"To A for life, then to B if B survives A.",
+  correct:"Contingent Remainder",
+  explain:{
+    correct:"Survival is a condition precedent.",
+    wrong:{
+      "Vested Remainder":"The remainder is subject to a condition precedent.",
+      "Executory Interest":"No divestment occurs.",
+      "Reversion":"Nothing reverts to the grantor."
+    }
+  }
+}
+];
+
+/* ---------- STATE ---------- */
+let index=0, streak=0, right=0, wrong=0;
+let answered=false;
+let qStart=0, sessionStart=performance.now();
+let sessionTimer;
+
+/* ---------- ELEMENTS ---------- */
+const promptEl=document.getElementById("prompt");
+const answersEl=document.getElementById("answers");
+const feedbackEl=document.getElementById("feedback");
+const nextBtn=document.getElementById("nextBtn");
+const streakEl=document.getElementById("streak");
+const correctEl=document.getElementById("correct");
+const wrongEl=document.getElementById("wrong");
+const timerEl=document.getElementById("timer");
+const speedMode=document.getElementById("speedMode");
+const examMode=document.getElementById("examMode");
+
+/* ---------- HELPERS ---------- */
+const shuffle=a=>[...a].sort(()=>Math.random()-.5);
+
+/* ---------- TIMER ---------- */
+sessionTimer=setInterval(()=>{
+  timerEl.textContent=((performance.now()-sessionStart)/1000).toFixed(1);
+},100);
+
+/* ---------- LOAD ---------- */
+function loadQuestion(){
+  answered=false;
+  feedbackEl.style.display="none";
+  answersEl.innerHTML="";
+  qStart=performance.now();
+
+  const q=QUESTIONS[index];
+  promptEl.textContent=q.text;
+
+  const opts=shuffle([q.correct,...Object.keys(q.explain.wrong)]);
+  opts.forEach(opt=>{
+    const b=document.createElement("button");
+    b.textContent=opt;
+    b.onclick=()=>handleAnswer(opt,b);
+    answersEl.appendChild(b);
+  });
+}
+
+/* ---------- ANSWER ---------- */
+function handleAnswer(choice,btn){
+  if(answered) return;
+  answered=true;
+
+  const q=QUESTIONS[index];
+  const t=((performance.now()-qStart)/1000).toFixed(1);
+
+  document.querySelectorAll(".answers button").forEach(b=>b.disabled=true);
+
+  let html="";
+  if(choice===q.correct){
+    btn.classList.add("correct");
+    streak++; right++;
+    feedbackEl.className="feedback correct";
+    html=`<b>Correct.</b><br><b>Why:</b> ${q.explain.correct}`;
+  } else {
+    btn.classList.add("wrong");
+    streak=0; wrong++;
+    feedbackEl.className="feedback wrong";
+    html=`<b>Incorrect.</b><br><b>Why your answer is wrong:</b> ${q.explain.wrong[choice]}<br><br>`;
+    html+=`<b>Why the correct answer works:</b> ${q.explain.correct}<br><br><b>Why not the others:</b><ul>`;
+    for(const [k,v] of Object.entries(q.explain.wrong)){
+      if(k!==choice) html+=`<li><i>${k}</i>: ${v}</li>`;
+    }
+    html+="</ul>";
+  }
+
+  html+=`<div style="margin-top:6px;">Answered in ${t}s</div>`;
+
+  if(!examMode.checked){
+    feedbackEl.innerHTML=html;
+    feedbackEl.style.display="block";
+  }
+
+  streakEl.textContent=streak;
+  correctEl.textContent=right;
+  wrongEl.textContent=wrong;
+
+  if(speedMode.checked){
+    setTimeout(nextQuestion,5000);
+  }
+}
+
+/* ---------- NEXT ---------- */
+function nextQuestion(){
+  index=(index+1)%QUESTIONS.length;
+  loadQuestion();
+}
+
+nextBtn.onclick=nextQuestion;
+
+/* ---------- INIT ---------- */
+loadQuestion();
+</script>
+</body>
+</html>
